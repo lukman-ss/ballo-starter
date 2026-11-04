@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lukman-ss/ballo"
+	ballo "github.com/lukman-ss/ballo"
 	"github.com/lukman-ss/ballo-starter/internal/task"
 )
 
@@ -39,29 +39,17 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-// CreateRequest represents payload for creating a task.
-type CreateRequest struct {
-	Title string `json:"title"`
-}
-
-// UpdateRequest represents payload for partially updating a task.
-type UpdateRequest struct {
-	Title *string `json:"title,omitempty"`
-	Done  *bool   `json:"done"`
-}
-
 // Create handles POST /api/v1/tasks
 func (h *TaskHandler) Create(req *ballo.Request) (*ballo.Response, error) {
-	if req.Body == nil {
-		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "request body required"}), nil
+	var payload struct {
+		Title string `json:"title"`
 	}
-
-	reader := http.MaxBytesReader(nil, req.Body, h.maxBodyBytes)
-	dec := json.NewDecoder(reader)
-	dec.DisallowUnknownFields()
-
-	var payload CreateRequest
-	if err := dec.Decode(&payload); err != nil {
+	decoder := json.NewDecoder(io.LimitReader(req.Body, h.maxBodyBytes))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&payload); err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+			return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "request body required"}), nil
+		}
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
 			return ballo.JSON(http.StatusRequestEntityTooLarge, ErrorResponse{Error: "request body too large"}), nil
@@ -69,21 +57,14 @@ func (h *TaskHandler) Create(req *ballo.Request) (*ballo.Response, error) {
 		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "malformed JSON or invalid fields"}), nil
 	}
 
-	if err := dec.Decode(&struct{}{}); err != io.EOF {
-		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "unexpected multiple JSON values"}), nil
+	if payload.Title == "" {
+		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "title is required"}), nil
 	}
-
-	// Validate using ballo-validation
-	if strings.TrimSpace(payload.Title) == "" {
-		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "title required"}), nil
-	}
-
-	title := strings.TrimSpace(payload.Title)
-	if len(title) > 200 {
+	if len(payload.Title) > 200 {
 		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "title must be at most 200 characters"}), nil
 	}
 
-	created, err := h.store.Create(title)
+	created, err := h.store.Create(payload.Title)
 	if err != nil {
 		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}), nil
 	}
@@ -105,7 +86,7 @@ func (h *TaskHandler) List(req *ballo.Request) (*ballo.Response, error) {
 
 // GetByID handles GET /api/v1/tasks/:id
 func (h *TaskHandler) GetByID(req *ballo.Request) (*ballo.Response, error) {
-	id := strings.TrimSpace(req.Param("id"))
+	id := req.Param("id")
 	if id == "" {
 		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "id required"}), nil
 	}
@@ -123,30 +104,24 @@ func (h *TaskHandler) GetByID(req *ballo.Request) (*ballo.Response, error) {
 
 // Update handles PATCH /api/v1/tasks/:id
 func (h *TaskHandler) Update(req *ballo.Request) (*ballo.Response, error) {
-	id := strings.TrimSpace(req.Param("id"))
+	id := req.Param("id")
 	if id == "" {
 		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "id required"}), nil
 	}
 
-	if req.Body == nil {
-		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "request body required"}), nil
+	var payload struct {
+		Title *string `json:"title,omitempty"`
+		Done  *bool   `json:"done"`
 	}
-
-	reader := http.MaxBytesReader(nil, req.Body, h.maxBodyBytes)
-	dec := json.NewDecoder(reader)
-	dec.DisallowUnknownFields()
-
-	var payload UpdateRequest
-	if err := dec.Decode(&payload); err != nil {
+	if err := json.NewDecoder(io.LimitReader(req.Body, h.maxBodyBytes)).Decode(&payload); err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+			return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "request body required"}), nil
+		}
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
 			return ballo.JSON(http.StatusRequestEntityTooLarge, ErrorResponse{Error: "request body too large"}), nil
 		}
 		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "malformed JSON or invalid fields"}), nil
-	}
-
-	if err := dec.Decode(&struct{}{}); err != io.EOF {
-		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "unexpected multiple JSON values"}), nil
 	}
 
 	if payload.Title == nil && payload.Done == nil {
@@ -177,7 +152,7 @@ func (h *TaskHandler) Update(req *ballo.Request) (*ballo.Response, error) {
 
 // Delete handles DELETE /api/v1/tasks/:id
 func (h *TaskHandler) Delete(req *ballo.Request) (*ballo.Response, error) {
-	id := strings.TrimSpace(req.Param("id"))
+	id := req.Param("id")
 	if id == "" {
 		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "id required"}), nil
 	}
@@ -190,8 +165,5 @@ func (h *TaskHandler) Delete(req *ballo.Request) (*ballo.Response, error) {
 		return ballo.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal error"}), nil
 	}
 
-	return &ballo.Response{
-		StatusCode: http.StatusNoContent,
-		Header:     make(http.Header),
-	}, nil
+	return ballo.JSON(http.StatusNoContent, nil), nil
 }

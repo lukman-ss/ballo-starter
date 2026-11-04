@@ -1,14 +1,16 @@
 package app
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 	"sync/atomic"
-	"time"
 
-	"github.com/lukman-ss/ballo"
+	ballo "github.com/lukman-ss/ballo"
+	ballodb "github.com/lukman-ss/ballo-database"
+	ballorender "github.com/lukman-ss/ballo-render"
 	"github.com/lukman-ss/ballo-starter/internal/config"
 	"github.com/lukman-ss/ballo-starter/internal/http/handler"
 	"github.com/lukman-ss/ballo-starter/internal/task"
@@ -16,6 +18,7 @@ import (
 
 // App encapsulates the Ballo engine, configuration, and app components.
 type App struct {
+	db     *ballodb.DB
 	cfg    *config.Config
 	engine *ballo.Engine
 	ready  *atomic.Bool
@@ -34,33 +37,27 @@ func New(cfg *config.Config) (*App, error) {
 	ready.Store(false)
 
 	engine := ballo.New()
+	// Initialize renderer for HTML templates
+	renderer := ballorender.New(ballorender.Config{Directory: "templates"})
+	engine.SetRenderer(renderer)
 
-	// Global recovery middleware
-	engine.Use(ballo.RecoveryMiddleware())
-
-	// Access logging middleware with timing (never logs credentials/headers/body)
-	engine.Use(func(next ballo.Handler) ballo.Handler {
-		return func(req *ballo.Request) (*ballo.Response, error) {
-			start := time.Now()
-			resp, err := next(req)
-			duration := time.Since(start)
-
-			status := http.StatusOK
-			if resp != nil && resp.StatusCode != 0 {
-				status = resp.StatusCode
-			}
-
-			logger.Info("http request",
-				"method", req.Method,
-				"path", req.URL.Path,
-				"status", status,
-				"duration_ms", duration.Milliseconds(),
-				"remote_addr", req.RemoteAddr,
-			)
-
-			return resp, err
+	// Initialize database if configured
+	var db *ballodb.DB
+	if cfg.DatabaseDriver != "" && cfg.DatabaseDSN != "" {
+		var err error
+		db, err = ballodb.Open(cfg.DatabaseDriver, cfg.DatabaseDSN,
+			ballodb.WithMaxOpenConns(cfg.DatabaseMaxConns),
+			ballodb.WithMaxIdleConns(cfg.DatabaseMaxIdle),
+		)
+		if err != nil {
+			logger.Error("failed to open database", "error", err)
+			return nil, fmt.Errorf("database init failed: %w", err)
 		}
-	})
+		logger.Info("database connected")
+	}
+
+	// Global middleware
+	engine.Use(ballo.LoggerMiddleware(), ballo.RecoveryMiddleware())
 
 	// Custom 404 handler
 	engine.NotFound(func(req *ballo.Request) (*ballo.Response, error) {
@@ -92,7 +89,21 @@ func New(cfg *config.Config) (*App, error) {
 	apiV1.PATCH("/tasks/:id", taskHandler.Update)
 	apiV1.DELETE("/tasks/:id", taskHandler.Delete)
 
+	// Example HTML rendering via ballo-render
+	apiV1.GET("/welcome", func(req *ballo.Request) (*ballo.Response, error) {
+		r := engine.Render()
+		if r == nil {
+			return ballo.JSON(http.StatusInternalServerError, map[string]string{"error": "renderer not configured"}), nil
+		}
+		var b strings.Builder
+		if err := r.Render(&b, "welcome.html", map[string]string{"Title": "Hello Ballo Starter"}); err != nil {
+			return nil, err
+		}
+		return ballo.HTML(http.StatusOK, b.String()), nil
+	})
+
 	return &App{
+		db:     db,
 		cfg:    cfg,
 		engine: engine,
 		ready:  ready,
@@ -113,6 +124,11 @@ func (a *App) SetReady(ready bool) {
 // Logger returns the application structured logger.
 func (a *App) Logger() *slog.Logger {
 	return a.logger
+}
+
+// DB returns the database connection pool if configured.
+func (a *App) DB() *ballodb.DB {
+	return a.db
 }
 
 func newLogger(levelStr string) *slog.Logger {

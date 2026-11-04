@@ -4,7 +4,7 @@ Minimal production-ready Go web API demonstrating the **Ballo** framework.
 
 ## Scope
 
-- Ballo version: `v0.0.0-20261027061017-e84a7679c8a4`
+- Ballo version: `v0.1.0`
 - Go version: `1.23.0`
 - Standard library only beyond Ballo (no extra deps)
 
