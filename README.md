@@ -5,7 +5,7 @@ Minimal production-ready Go web API demonstrating the **Ballo** framework.
 ## Scope
 
 - Ballo version: `v0.1.0`
-- Go version: `1.23.0`
+- Go version: `1.26`
 - Standard library only beyond Ballo (no extra deps)
 
 ## Quick Start
@@ -139,7 +139,7 @@ internal/task/           # in-memory store + domain model
 - Data is **in-memory**: lost on restart; not shared across instances.
 - No authentication, authorization, or rate limiting.
 - No pagination, filtering, or sorting beyond ID-order for `LIST`.
-- No persistence layer (database, cache).
+- No persistence layer (database, cache). Removed in starter (see `internal/app/app.go`).
 
 ## Security Notes
 

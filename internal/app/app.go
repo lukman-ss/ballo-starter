@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -9,7 +8,6 @@ import (
 	"sync/atomic"
 
 	ballo "github.com/lukman-ss/ballo"
-	ballodb "github.com/lukman-ss/ballo-database"
 	ballorender "github.com/lukman-ss/ballo-render"
 	"github.com/lukman-ss/ballo-starter/internal/config"
 	"github.com/lukman-ss/ballo-starter/internal/http/handler"
@@ -18,7 +16,6 @@ import (
 
 // App encapsulates the Ballo engine, configuration, and app components.
 type App struct {
-	db     *ballodb.DB
 	cfg    *config.Config
 	engine *ballo.Engine
 	ready  *atomic.Bool
@@ -41,20 +38,7 @@ func New(cfg *config.Config) (*App, error) {
 	renderer := ballorender.New(ballorender.Config{Directory: "templates"})
 	engine.SetRenderer(renderer)
 
-	// Initialize database if configured
-	var db *ballodb.DB
-	if cfg.DatabaseDriver != "" && cfg.DatabaseDSN != "" {
-		var err error
-		db, err = ballodb.Open(cfg.DatabaseDriver, cfg.DatabaseDSN,
-			ballodb.WithMaxOpenConns(cfg.DatabaseMaxConns),
-			ballodb.WithMaxIdleConns(cfg.DatabaseMaxIdle),
-		)
-		if err != nil {
-			logger.Error("failed to open database", "error", err)
-			return nil, fmt.Errorf("database init failed: %w", err)
-		}
-		logger.Info("database connected")
-	}
+	// Database initialization skipped (not configured/used in starter)
 
 	// Global middleware
 	engine.Use(ballo.LoggerMiddleware(), ballo.RecoveryMiddleware())
@@ -103,7 +87,6 @@ func New(cfg *config.Config) (*App, error) {
 	})
 
 	return &App{
-		db:     db,
 		cfg:    cfg,
 		engine: engine,
 		ready:  ready,
@@ -124,11 +107,6 @@ func (a *App) SetReady(ready bool) {
 // Logger returns the application structured logger.
 func (a *App) Logger() *slog.Logger {
 	return a.logger
-}
-
-// DB returns the database connection pool if configured.
-func (a *App) DB() *ballodb.DB {
-	return a.db
 }
 
 func newLogger(levelStr string) *slog.Logger {
