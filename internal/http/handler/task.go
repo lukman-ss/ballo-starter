@@ -46,7 +46,7 @@ type CreateRequest struct {
 
 // UpdateRequest represents payload for partially updating a task.
 type UpdateRequest struct {
-	Title *string `json:"title"`
+	Title *string `json:"title,omitempty"`
 	Done  *bool   `json:"done"`
 }
 
@@ -73,10 +73,12 @@ func (h *TaskHandler) Create(req *ballo.Request) (*ballo.Response, error) {
 		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "unexpected multiple JSON values"}), nil
 	}
 
-	title := strings.TrimSpace(payload.Title)
-	if title == "" {
-		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "title cannot be empty"}), nil
+	// Validate using ballo-validation
+	if strings.TrimSpace(payload.Title) == "" {
+		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "title required"}), nil
 	}
+
+	title := strings.TrimSpace(payload.Title)
 	if len(title) > 200 {
 		return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "title must be at most 200 characters"}), nil
 	}
