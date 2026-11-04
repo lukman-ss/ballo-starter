@@ -44,7 +44,7 @@ func (h *TaskHandler) Create(req *ballo.Request) (*ballo.Response, error) {
 	var payload struct {
 		Title string `json:"title"`
 	}
-	decoder := json.NewDecoder(io.LimitReader(req.Request.Body, h.maxBodyBytes))
+	decoder := json.NewDecoder(io.LimitReader(req.Body, h.maxBodyBytes))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&payload); err != nil {
 		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
@@ -113,7 +113,7 @@ func (h *TaskHandler) Update(req *ballo.Request) (*ballo.Response, error) {
 		Title *string `json:"title,omitempty"`
 		Done  *bool   `json:"done"`
 	}
-	if err := json.NewDecoder(io.LimitReader(req.Request.Body, h.maxBodyBytes)).Decode(&payload); err != nil {
+	if err := json.NewDecoder(io.LimitReader(req.Body, h.maxBodyBytes)).Decode(&payload); err != nil {
 		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
 			return ballo.JSON(http.StatusBadRequest, ErrorResponse{Error: "request body required"}), nil
 		}

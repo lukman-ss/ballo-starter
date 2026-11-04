@@ -6,7 +6,7 @@ Minimal production-ready Go web API demonstrating the **Ballo** framework.
 
 - Ballo version: `v0.1.0`
 - Go version: `1.26`
-- Standard library only beyond Ballo (no extra deps)
+- Uses `ballo` + `ballo-render` for HTTP framework and HTML template rendering
 
 ## Quick Start
 

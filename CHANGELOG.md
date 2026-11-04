@@ -9,8 +9,7 @@ and this project does not adhere to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- `internal/app/app.go`: Renamed `ballodb` import to `balldb` for consistency with `ballo-database` package naming.
-- `internal/http/handler/task.go`: Updated request body reader to use `req.Raw().Body` instead of `req.Body`.
+- `internal/http/handler/task.go`: Read request body via `req.Body` (embedded `*http.Request`) instead of `req.Request.Body`.
 
 ### Added
 
@@ -20,8 +19,14 @@ and this project does not adhere to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- `internal/app/app.go`: Fixed database import alias.
 - `internal/http/handler/task.go`: Fixed request body access for HTTP request handling.
+
+## [Unreleased]
+
+### Changed
+
+- `internal/config/config.go`: Removed unused database configuration fields (`DATABASE_DRIVER`, `DATABASE_DSN`, `DATABASE_MAX_CONNS`, `DATABASE_MAX_IDLE`).
+- `internal/app/app.go`: Removed database initialization comment (database wiring removed).
 
 ## [0.1.0] - 2026-01-01
 

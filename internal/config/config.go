@@ -19,11 +19,6 @@ type Config struct {
 	ShutdownTimeout       time.Duration
 	MaxBodyBytes          int64
 	LogLevel              string
-	// Database (optional)
-	DatabaseDriver   string
-	DatabaseDSN      string
-	DatabaseMaxConns int
-	DatabaseMaxIdle  int
 }
 
 // Load loads configuration from environment variables with safe defaults.
@@ -38,8 +33,6 @@ func Load() (*Config, error) {
 		ShutdownTimeout:       10 * time.Second,
 		MaxBodyBytes:          1048576, // 1 MB
 		LogLevel:              getEnv("LOG_LEVEL", "info"),
-		DatabaseDriver:        getEnv("DATABASE_DRIVER", ""),
-		DatabaseDSN:           getEnv("DATABASE_DSN", ""),
 	}
 
 	if v := os.Getenv("HTTP_READ_HEADER_TIMEOUT"); v != "" {
@@ -80,22 +73,6 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("invalid SHUTDOWN_TIMEOUT %q: %w", v, err)
 		}
 		cfg.ShutdownTimeout = d
-	}
-
-	if v := os.Getenv("DATABASE_MAX_CONNS"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil || n < 0 {
-			return nil, fmt.Errorf("invalid DATABASE_MAX_CONNS %q: must be non‑negative integer", v)
-		}
-		cfg.DatabaseMaxConns = n
-	}
-
-	if v := os.Getenv("DATABASE_MAX_IDLE"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil || n < 0 {
-			return nil, fmt.Errorf("invalid DATABASE_MAX_IDLE %q: must non‑negative integer", v)
-		}
-		cfg.DatabaseMaxIdle = n
 	}
 
 	if v := os.Getenv("MAX_BODY_BYTES"); v != "" {
@@ -139,12 +116,6 @@ func (c *Config) Validate() error {
 	}
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("SHUTDOWN_TIMEOUT must be positive")
-	}
-	if c.DatabaseDriver != "" && c.DatabaseDSN == "" {
-		return fmt.Errorf("DATABASE_DRIVER set but DATABASE_DSN empty")
-	}
-	if c.DatabaseDSN != "" && c.DatabaseDriver == "" {
-		return fmt.Errorf("DATABASE_DSN set but DATABASE_DRIVER empty")
 	}
 
 	if c.MaxBodyBytes <= 0 {

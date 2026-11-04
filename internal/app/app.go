@@ -38,8 +38,6 @@ func New(cfg *config.Config) (*App, error) {
 	renderer := ballorender.New(ballorender.Config{Directory: "templates"})
 	engine.SetRenderer(renderer)
 
-	// Database initialization skipped (not configured/used in starter)
-
 	// Global middleware
 	engine.Use(ballo.LoggerMiddleware(), ballo.RecoveryMiddleware())
 
