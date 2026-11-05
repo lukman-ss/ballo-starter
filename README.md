@@ -41,6 +41,9 @@ docker build -t ballo-starter .
 docker run -p 8080:8080 ballo-starter
 ```
 
+Server binary built with `make build` copies to `bin/server`. Docker uses `/bin/server` from builder stage.
+```
+
 ## Configuration
 
 All values via environment variables (see `.env.example`):
@@ -65,6 +68,12 @@ All values via environment variables (see `.env.example`):
 |---|---|---|
 | `GET` | `/healthz` | `200` with `{"status":"pass"}` |
 | `GET` | `/readyz` | `200` or `503` |
+
+### HTML rendering (via ballo-render)
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/v1/welcome` | Render welcome.html template |
 
 ### Tasks (in-memory demo store)
 
@@ -108,6 +117,12 @@ curl http://localhost:8080/api/v1/tasks
 curl -X PATCH http://localhost:8080/api/v1/tasks/1 \
   -H "Content-Type: application/json" \
   -d '{"done": true}'
+```
+
+#### Example: render welcome template
+
+```bash
+curl http://localhost:8080/api/v1/welcome
 ```
 
 ## Response Formats
